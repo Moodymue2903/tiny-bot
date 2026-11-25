@@ -51,6 +51,7 @@ SCALP_MAX = 2           # scalp sleeve: at most 2 positions
 SCALP_SIZE_PCT = 10      # scalp size: 10% of equity each
 SCALP_RSI_PERIOD = 14
 SCALP_RSI_MAX = 30      # scalp entry: RSI(14) under 30 ...
+SCALP_RSI_LOOSE = 35    # ... or under 35 once the stage-3 trade-count failsafe fires
 SCALP_BB_BARS = 20      # ... and close under the lower Bollinger band (20, 2 sigma)
 SCALP_BB_SIGMA = 2.0
 SCALP_TP_PCT = 0.03     # scalp exit: +3% take-profit ...
@@ -206,6 +207,9 @@ class Bot:
         self.filled_trades = 0
         self.drop_reclaim = False   # trade-count failsafe, stage 1
         self.loose_rsi = False      # trade-count failsafe, stage 2
+        self.scalp_loose = False    # trade-count failsafe, stage 3: if fewer
+                                    # than 8 filled trades by tradable batch 64,
+                                    # scalp entries accept RSI(14) under 35
         self.rotation_armed = False  # a rotation sell last batch: entries allowed
         self._entries_armed = False  # next batch to free a slot for its challenger
         self.next_client = 1
@@ -277,6 +281,13 @@ class Bot:
                 self.entry_seq.pop(sym, None)
                 self.sleeve.pop(sym, None)
         self.positions = new_positions
+        # A sleeve tag is set when its buy order is issued, before the fill is
+        # known. If that buy was rejected, no position ever appears: drop the
+        # tag here, or a phantom scalp position would permanently consume one
+        # of the two scalp slots for the rest of the window.
+        for sym in list(self.sleeve):
+            if sym not in self.positions:
+                self.sleeve.pop(sym, None)
         for sym, close in ((s, self.series[s].close()) for s in self.positions):
             if close is not None and close > self.peak.get(sym, 0.0):
                 self.peak[sym] = close
@@ -320,6 +331,8 @@ class Bot:
             self.drop_reclaim = True
         if tradable >= 60 and self.filled_trades < 8:
             self.loose_rsi = True
+        if tradable >= 64 and self.filled_trades < 8:
+            self.scalp_loose = True
 
         sells = []
         stop_outs = set()
@@ -480,7 +493,8 @@ class Bot:
             close = s.close()
             if rsi14 is None or lower is None or close is None:
                 continue
-            if rsi14 < SCALP_RSI_MAX and close < lower:
+            rsi_max = SCALP_RSI_LOOSE if self.scalp_loose else SCALP_RSI_MAX
+            if rsi14 < rsi_max and close < lower:
                 if self.seq - self.last_stop_seq.get(sym, -10 ** 9) < COOLDOWN_STOP:
                     continue
                 scalp_candidates.append(sym)
