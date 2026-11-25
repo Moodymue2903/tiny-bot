@@ -18,15 +18,15 @@ both:
 - a **momentum sleeve** buys the top 4 names by trailing 12h return while the
   regime is ON, with uncapped winners (trailing stop only, no take-profit);
 - a small **dip-scalp sleeve** (RSI(14) < 30 + below the lower Bollinger
-  band) harvests bounces and guarantees the >= 8 trade guardrail in a market
-  where the momentum sleeve never fires.
+  band) harvests bounces and is designed to clear the >= 8 trade guardrail in
+  a market where the momentum sleeve never fires.
 
 ## Measured results (local replay harness, kit dev window, 136 bars)
 
 - Full dev window: net PnL **-$21** on $10,000, 12 trades, max drawdown 1.0%,
   vs buy-and-hold **-$897** (margin **+$876**).
 - Split halves: +$677 and +$257 over buy-and-hold; 8 and 9 trades.
-- 72-bar walk-forward windows: median margin +$288 over buy-and-hold.
+- 72-bar walk-forward windows: median margin +$294 over buy-and-hold.
 - 2x-fee stress: margin +$852. Honest limit: the rally leg is unproven — on a
   synthetic mirror-image rally the margin is -$844, and no tested variant
   beats buy-and-hold in rallies without losing about twice as much in falls.
